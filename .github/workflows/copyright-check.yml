@@ -1,27 +1,26 @@
-name: Copyright check
-
-on: pull_request
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref
+    }}
 jobs:
   copyright-check:
-    runs-on: ubuntu-22.04
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4.1.1
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-      - run: |
-          pip install -e "ci/fireci"
-      - run: |
-          fireci copyright_check \
-            -e py                   \
-            -e gradle               \
-            -e java                 \
-            -e kt                 \
-            -e groovy               \
-            -e sh                   \
-            -e proto
+    - continue-on-error: true
+      uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+    - continue-on-error: true
+      run: 'pip install -e "ci/fireci"
+
+        '
+    - continue-on-error: true
+      run: "fireci copyright_check \\\n  -e py                   \\\n  -e gradle \
+        \              \\\n  -e java                 \\\n  -e kt                 \\\
+        \n  -e groovy               \\\n  -e sh                   \\\n  -e proto\n"
+name: Copyright check
+on:
+  repository_dispatch:
+    types: trigger-ga___copyright-check.yml

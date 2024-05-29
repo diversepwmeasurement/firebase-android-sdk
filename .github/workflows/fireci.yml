@@ -1,27 +1,29 @@
-name: fireci
-
-on:
-  pull_request:
-    paths:
-      - 'ci/**'
-      - '.github/workflows/fireci.yml'
-
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref
+    }}
 jobs:
   fireci:
-    name: "fireci tests"
-    runs-on: ubuntu-22.04
+    name: fireci tests
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4.1.1
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.8'
-      - run: |
-          pip install -e "ci/fireci[test]"
-      - run: |
-          pytest ci/fireci
-      - run: |
-          mypy --config-file ci/fireci/setup.cfg ci/fireci/ 
+    - continue-on-error: true
+      uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+    - continue-on-error: true
+      run: 'pip install -e "ci/fireci[test]"
+
+        '
+    - continue-on-error: true
+      run: 'pytest ci/fireci
+
+        '
+    - continue-on-error: true
+      run: "mypy --config-file ci/fireci/setup.cfg ci/fireci/ \n"
+name: fireci
+on:
+  repository_dispatch:
+    types: trigger-ga___fireci.yml

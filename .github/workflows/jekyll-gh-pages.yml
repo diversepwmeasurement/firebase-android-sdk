@@ -1,55 +1,43 @@
-name: Jekyll with GitHub Pages
-
-on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["master"]
-    paths:
-      - '.github/workflows/jekyll-gh-pages.yml'
-      - 'contributor-docs/**'
-  pull_request:
-    paths:
-      - '.github/workflows/jekyll-gh-pages.yml'
-      - 'contributor-docs/**'
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow one concurrent deployment
 concurrency:
-  group: "pages"
   cancel-in-progress: true
-
+  group: pages
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.1
-      - name: Setup Pages
-        uses: actions/configure-pages@v2
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./contributor-docs
-          destination: ./_site
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
-
+    - continue-on-error: true
+      name: Checkout
+      uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      name: Setup Pages
+      uses: actions/configure-pages@v2
+    - continue-on-error: true
+      name: Build with Jekyll
+      uses: actions/jekyll-build-pages@v1
+      with:
+        destination: ./_site
+        source: ./contributor-docs
+    - continue-on-error: true
+      name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
   deploy:
-    if: ${{ github.event_name == 'push' && github.repository == 'firebase/firebase-android-sdk' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && github.repository == 'firebase/firebase-android-sdk'
+      }}
     needs: build
+    runs-on: self-hosted
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v1
+    - continue-on-error: true
+      id: deployment
+      name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v1
+name: Jekyll with GitHub Pages
+on:
+  repository_dispatch:
+    types: trigger-ga___jekyll-gh-pages.yml
+permissions:
+  contents: read
+  id-token: write
+  pages: write

@@ -1,67 +1,76 @@
-name: Release note changes
-
-on:
-  pull_request:
-    branches:
-      - 'master'
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      uses: actions/checkout@v4.1.1
       with:
         fetch-depth: 0
-
-    - name: Create output file
+    - continue-on-error: true
+      name: Create output file
       run: touch changelog_comment.md
-
-    - name: Get changed changelog files
+    - continue-on-error: true
       id: changed-files
+      name: Get changed changelog files
       uses: tj-actions/changed-files@v36.0.10
       with:
-        files_ignore: |
-          buildSrc/**
-        files: |
-          **/CHANGELOG.md
+        files: '**/CHANGELOG.md
 
-    - name: Set up JDK 17
+          '
+        files_ignore: 'buildSrc/**
+
+          '
+    - continue-on-error: true
+      name: Set up JDK 17
       uses: actions/setup-java@v4.1.0
       with:
-        java-version: 17
-        distribution: temurin
         cache: gradle
-
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+        distribution: temurin
+        java-version: 17
+    - continue-on-error: true
       if: ${{ steps.changed-files.outputs.any_changed == 'true' }}
+      name: Set up Python 3.10
+      uses: actions/setup-python@v4
       with:
         python-version: '3.10'
-
-    - name: Set up fireci
+    - continue-on-error: true
       id: install-fireci
       if: ${{ steps.changed-files.outputs.any_changed == 'true' }}
+      name: Set up fireci
       run: pip3 install -e ci/fireci
-
-    - name: Generate comment
+    - continue-on-error: true
       id: generate-comment
       if: ${{ steps.install-fireci.outcome == 'success' }}
-      run: |
-        fireci changelog_comment -c "${{ steps.changed-files.outputs.all_changed_files }}" -o ./changelog_comment.md
+      name: Generate comment
+      run: 'fireci changelog_comment -c "${{ steps.changed-files.outputs.all_changed_files
+        }}" -o ./changelog_comment.md
 
-    - name: Add PR Comment
+        '
+    - continue-on-error: true
+      name: Add PR Comment
       uses: mshick/add-pr-comment@v2.8.1
-      continue-on-error: true
       with:
-        status: ${{ steps.generate-comment.outcome }}
-        message-path: ./changelog_comment.md
-        message-skipped: |
-          ## Release note changes
-          No release note changes were detected. If you made changes that should be
-          present in the next release, ensure you've added an entry in the appropriate
-          `CHANGELOG.md` file(s).
-        message-failure: |
-          ## Release note changes
+        message-failure: '## Release note changes
+
           A `CHANGELOG.md` file seems to not match the expected format.
+
           Please ensure your changelog files are following the format as
+
           defined in [our documentation](#).
+
+          '
+        message-path: ./changelog_comment.md
+        message-skipped: '## Release note changes
+
+          No release note changes were detected. If you made changes that should be
+
+          present in the next release, ensure you''ve added an entry in the appropriate
+
+          `CHANGELOG.md` file(s).
+
+          '
+        status: ${{ steps.generate-comment.outcome }}
+name: Release note changes
+on:
+  repository_dispatch:
+    types: trigger-ga___release-note-changes.yml

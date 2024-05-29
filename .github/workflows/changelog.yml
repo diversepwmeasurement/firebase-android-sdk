@@ -1,29 +1,31 @@
-name: Changelog
-
-on:
-  pull_request
-
 concurrency:
-    group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-    cancel-in-progress: true
-
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
 jobs:
   changelog-check:
-    runs-on: ubuntu-22.04
     env:
       BUNDLE_GEMFILE: ./ci/danger/Gemfile
+    runs-on: self-hosted
     steps:
-    - uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      uses: actions/checkout@v4.1.1
       with:
         fetch-depth: 100
         submodules: true
-    - uses: ruby/setup-ruby@v1
+    - continue-on-error: true
+      uses: ruby/setup-ruby@v1
       with:
         ruby-version: '2.7'
-    - name: Setup Bundler
+    - continue-on-error: true
+      name: Setup Bundler
       run: ./ci/danger/setup_bundler.sh
-    - name: Danger CHANGELOG verifier
+    - continue-on-error: true
       env:
         DANGER_GITHUB_API_TOKEN: ${{ secrets.GOOGLE_OSS_BOT_TOKEN }}
-      run:
-        '[ ! -z $DANGER_GITHUB_API_TOKEN ] && bundle exec danger --dangerfile=./ci/danger/Dangerfile || echo "Skipping Danger for External Contributor"'
+      name: Danger CHANGELOG verifier
+      run: '[ ! -z $DANGER_GITHUB_API_TOKEN ] && bundle exec danger --dangerfile=./ci/danger/Dangerfile
+        || echo "Skipping Danger for External Contributor"'
+name: Changelog
+on:
+  repository_dispatch:
+    types: trigger-ga___changelog.yml

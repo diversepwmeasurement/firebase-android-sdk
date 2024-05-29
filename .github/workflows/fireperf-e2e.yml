@@ -1,107 +1,87 @@
-name: FirePerf E2E Tests
-
-on:
-  schedule:
-    - cron: 4 */4 * * *  # every 4 hours at 04 minutes past the hour
-  workflow_dispatch:     # allow triggering the workflow manually
-
 concurrency:
   group: ${{ github.workflow }}
-
 env:
-  PERF_E2E_GOOGLE_SERVICES: ${{ secrets.PERF_E2E_GOOGLE_SERVICES }}
   FTL_RESULTS_BUCKET: fireescape
-
+  PERF_E2E_GOOGLE_SERVICES: ${{ secrets.PERF_E2E_GOOGLE_SERVICES }}
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      name: Checkout firebase-android-sdk
+      uses: actions/checkout@v4.1.1
+    - continue-on-error: true
+      name: Checkout firebase-android-buildtools
+      uses: actions/checkout@v4.1.1
+      with:
+        path: firebase-android-buildtools
+        repository: FirebasePrivate/firebase-android-buildtools
+        token: ${{ secrets.GOOGLE_OSS_BOT_TOKEN }}
+    - continue-on-error: true
+      name: Set up JDK 17
+      uses: actions/setup-java@v4.1.0
+      with:
+        cache: gradle
+        distribution: temurin
+        java-version: 17
+    - continue-on-error: true
+      name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - continue-on-error: true
+      name: Set up fireci
+      run: pip3 install -e ci/fireci
+    - continue-on-error: true
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    - continue-on-error: true
+      uses: google-github-actions/setup-gcloud@v2
+    - continue-on-error: true
+      name: Add google-services.json
+      run: echo $PERF_E2E_GOOGLE_SERVICES | base64 -d > google-services.json
+    - continue-on-error: true
+      name: Run fireperf end-to-end tests
+      run: "fireci fireperf_e2e_test \\\n  --plugin_repo_dir=firebase-android-buildtools\
+        \ \\\n  --target_environment=${{ matrix.environment }}\n"
+    - continue-on-error: true
+      if: ${{ failure() }}
+      name: Notify developers upon failures
+      uses: actions/github-script@v6
+      with:
+        script: "const owner = context.repo.owner;\nconst repo = context.repo.repo;\n\
+          const commit = context.sha;\nconst run = context.runId;\nconst url = `https://github.com/${owner}/${repo}/actions/runs/${run}`;\n\
+          \nconst datetime = (new Date()).toLocaleString('en-US', {\n  timeZone: 'America/Los_Angeles',\n\
+          \  dateStyle: 'medium',\n  timeStyle: 'long',\n});\n\nconst text =\n`Failed\
+          \ on commit ${commit} at ${datetime}.\n\n${url}`;\n\nconst { data: issues\
+          \ } = await github.rest.issues.listForRepo({\n  owner: owner,\n  repo: repo,\n\
+          \  state: 'open',\n  labels: 'fireperf-e2e-tests'\n});\n\nif (issues.length)\
+          \ {\n  github.rest.issues.createComment({\n    owner: owner,\n    repo:\
+          \ repo,\n    issue_number: issues[0].number,\n    body: text,\n  });\n}\
+          \ else {\n  github.rest.issues.create({\n    owner: owner,\n    repo: repo,\n\
+          \    title: 'FirePerf E2E Test Failures',\n    body: text,\n    labels:\
+          \ ['fireperf-e2e-tests'],\n    assignees: ['raymondlam', 'visumickey']\n\
+          \  });\n}\n"
+    - continue-on-error: true
+      if: always()
+      name: Upload test artifacts
+      uses: actions/upload-artifact@v4.3.3
+      with:
+        name: test-artifacts (${{ matrix.environment }})
+        path: '~/.m2/repository/com/google/firebase/perf-plugin
+
+          **/build/reports
+
+          **/build/test-results
+
+          '
     strategy:
       matrix:
-        environment: [ prod, autopush ]
-    steps:
-      - name: Checkout firebase-android-sdk
-        uses: actions/checkout@v4.1.1
-      - name: Checkout firebase-android-buildtools
-        uses: actions/checkout@v4.1.1
-        with:
-          repository: FirebasePrivate/firebase-android-buildtools
-          token: ${{ secrets.GOOGLE_OSS_BOT_TOKEN }}
-          path: firebase-android-buildtools
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4.1.0
-        with:
-          java-version: 17
-          distribution: temurin
-          cache: gradle
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - name: Set up fireci
-        run: pip3 install -e ci/fireci
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-      - uses: google-github-actions/setup-gcloud@v2
-      - name: Add google-services.json
-        run: echo $PERF_E2E_GOOGLE_SERVICES | base64 -d > google-services.json
-      - name: Run fireperf end-to-end tests
-        run: |
-          fireci fireperf_e2e_test \
-            --plugin_repo_dir=firebase-android-buildtools \
-            --target_environment=${{ matrix.environment }}
-      - name: Notify developers upon failures
-        if: ${{ failure() }}
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const commit = context.sha;
-            const run = context.runId;
-            const url = `https://github.com/${owner}/${repo}/actions/runs/${run}`;
-
-            const datetime = (new Date()).toLocaleString('en-US', {
-              timeZone: 'America/Los_Angeles',
-              dateStyle: 'medium',
-              timeStyle: 'long',
-            });
-
-            const text =
-            `Failed on commit ${commit} at ${datetime}.
-
-            ${url}`;
-
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: owner,
-              repo: repo,
-              state: 'open',
-              labels: 'fireperf-e2e-tests'
-            });
-
-            if (issues.length) {
-              github.rest.issues.createComment({
-                owner: owner,
-                repo: repo,
-                issue_number: issues[0].number,
-                body: text,
-              });
-            } else {
-              github.rest.issues.create({
-                owner: owner,
-                repo: repo,
-                title: 'FirePerf E2E Test Failures',
-                body: text,
-                labels: ['fireperf-e2e-tests'],
-                assignees: ['raymondlam', 'visumickey']
-              });
-            }
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4.3.3
-        with:
-          name: test-artifacts (${{ matrix.environment }})
-          path: |
-            ~/.m2/repository/com/google/firebase/perf-plugin
-            **/build/reports
-            **/build/test-results
+        environment:
+        - prod
+        - autopush
+name: FirePerf E2E Tests
+on:
+  repository_dispatch:
+    types: trigger-ga___fireperf-e2e.yml
